@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fika-langwatch"
-version = "0.2.4"
+version = "0.2.5"
 description = "LangChain wrapper with automatic fallback and alert notifications when API keys fail"
 readme = "README.md"
 license = {file = "LICENSE"}
