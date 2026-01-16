@@ -1,0 +1,90 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fika-langwatch"
+version = "0.2.3"
+description = "LangChain wrapper with automatic fallback and alert notifications when API keys fail"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.9"
+authors = [
+    { name = "FIKA Private Limited" },
+    { name = "Rahul Kumar", email = "rahul@pupiltree.ai" },
+    { name = "Nikhil Sukhte", email = "nikhil@pupiltree.ai" }
+]
+keywords = [
+    "langchain",
+    "llm",
+    "fallback",
+    "alerts",
+    "api-keys",
+    "monitoring"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: Other/Proprietary License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "langchain-core>=0.1.0",
+]
+
+[project.optional-dependencies]
+email = ["aiosmtplib>=3.0.0"]
+slack = ["httpx>=0.25.0"]
+webhook = ["httpx>=0.25.0"]
+all = [
+    "aiosmtplib>=3.0.0",
+    "httpx>=0.25.0",
+]
+# Provider-specific dependencies (optional)
+google = ["langchain-google-genai>=1.0.0"]
+openai = ["langchain-openai>=0.1.0"]
+anthropic = ["langchain-anthropic>=0.1.0"]
+providers = [
+    "langchain-google-genai>=1.0.0",
+    "langchain-openai>=0.1.0",
+    "langchain-anthropic>=0.1.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/pupiltree/fika-langwatch"
+Documentation = "https://github.com/pupiltree/fika-langwatch#readme"
+Repository = "https://github.com/pupiltree/fika-langwatch"
+Issues = "https://github.com/pupiltree/fika-langwatch/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/langwatch"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/README.md",
+    "/LICENSE",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
