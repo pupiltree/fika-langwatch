@@ -452,8 +452,10 @@ class ChatWithFallback(BaseChatModel):
             provider = key.provider
             model_id = key.model
             failure_count = key.failure_count
-            # Mask API key - show first 4 and last 4 chars
-            if key.key and len(key.key) > 8:
+            # Mask API key - show first 8 and last 4 chars for better identification
+            if key.key and len(key.key) > 16:
+                api_key_masked = f"{key.key[:8]}...{key.key[-4:]}"
+            elif key.key and len(key.key) > 8:
                 api_key_masked = f"{key.key[:4]}...{key.key[-4:]}"
             elif key.key:
                 api_key_masked = f"{key.key[:2]}..."
