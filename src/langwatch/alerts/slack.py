@@ -67,27 +67,61 @@ class SlackAlert(AlertChannel):
         severity_emoji = {"info": ":information_source:", "warning": ":warning:", "error": ":x:", "critical": ":rotating_light:"}
         emoji = severity_emoji.get(payload.severity.lower(), ":bell:")
 
+        # Extract details from payload
+        details = payload.details or {}
+        key_name = details.get("key_name") or payload.failed_key_name or "Unknown"
+        key_type = details.get("key_type", "primary")
+        provider = details.get("provider") or payload.failed_provider or "N/A"
+        model = details.get("model") or "N/A"
+        api_key_masked = details.get("api_key_masked") or "***"
+        failure_count = details.get("failure_count", 0)
+        error_truncated = details.get("error_truncated") or payload.error_message or "No details"
+
         blocks: List[Dict[str, Any]] = [
             {"type": "header", "text": {"type": "plain_text", "text": f"{emoji} {payload.title}", "emoji": True}},
-            {"type": "section", "text": {"type": "mrkdwn", "text": payload.message}},
             {"type": "divider"},
         ]
 
-        fields = []
-        if payload.failed_key_name:
-            fields.append({"type": "mrkdwn", "text": f"*Failed Key:*\n{payload.failed_key_name}"})
-        if payload.failed_provider:
-            fields.append({"type": "mrkdwn", "text": f"*Provider:*\n{payload.failed_provider}"})
-        if payload.fallback_key_name:
-            fields.append({"type": "mrkdwn", "text": f"*Fallback:*\n{payload.fallback_key_name}"})
+        # Key Information fields (2 columns)
+        blocks.append({
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*:key: Key Name*\n`{key_name}`"},
+                {"type": "mrkdwn", "text": f"*:label: Type*\n`{key_type.upper()}`"},
+            ]
+        })
 
-        if fields:
-            blocks.append({"type": "section", "fields": fields[:10]})
+        # Provider & Model fields (2 columns)
+        blocks.append({
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*:package: Provider*\n`{provider}`"},
+                {"type": "mrkdwn", "text": f"*:robot_face: Model*\n`{model}`"},
+            ]
+        })
 
-        if payload.error_message:
-            blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": f"*Error:*\n```{payload.error_message[:500]}```"}})
+        # API Key & Failure Count fields (2 columns)
+        blocks.append({
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*:closed_lock_with_key: API Key*\n`{api_key_masked}`"},
+                {"type": "mrkdwn", "text": f"*:chart_with_upwards_trend: Failure Count*\n`{failure_count}`"},
+            ]
+        })
 
-        blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": f"Timestamp: {payload.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"}]})
+        blocks.append({"type": "divider"})
+
+        # Error section
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"*:rotating_light: Error*\n```{error_truncated[:400]}```"}
+        })
+
+        # Timestamp footer
+        blocks.append({
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": f":clock1: {payload.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}"}]
+        })
 
         message: Dict[str, Any] = {"blocks": blocks, "attachments": [{"color": color, "fallback": payload.title}]}
 

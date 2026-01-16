@@ -402,7 +402,7 @@ Copyright (c) 2026 FIKA Private Limited. All Rights Reserved.
 This is proprietary software. Unauthorized copying, modification, or distribution is prohibited.
 
 **Authors:**
-- Rahul Kumar - rahul@pupiltree.ai
+- Rahul Kumar - rahul@pupiltree.ai | [GitHub](https://github.com/rahul20110)
 - Nikhil Sukhte - nikhil@pupiltree.ai
 
 For licensing inquiries, contact: rahul@pupiltree.ai
