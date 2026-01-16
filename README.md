@@ -29,7 +29,33 @@ All dependencies are included by default:
 
 ## Quick Start
 
-### Option 1: Config-based (Recommended)
+### Option 1: Manual Models (Recommended)
+
+```python
+from langwatch import ChatWithFallback
+from langwatch.alerts import EmailAlert
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
+
+# Create your own models - works with ANY LangChain-compatible model
+models = [
+    ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="..."),
+    ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="..."),
+    ChatOpenAI(model="grok-4.1", base_url="https://openrouter.ai/api/v1", api_key="..."),
+]
+
+chat = ChatWithFallback(
+    models=models,
+    model_names=["gemini-1", "gemini-2", "fallback"],
+    alerts=[EmailAlert(...)],
+)
+
+# Bind tools and use
+chat_with_tools = chat.bind_tools(tools)
+response = await chat_with_tools.ainvoke(messages)
+```
+
+### Option 2: Config-based (Auto-create Models)
 
 ```python
 from langwatch import ChatWithFallback
@@ -81,32 +107,6 @@ chat_with_tools = chat.bind_tools([your_tool_1, your_tool_2])
 # Use like any LangChain model (sync or async)
 response = chat_with_tools.invoke([HumanMessage(content="Hello!")])
 response = await chat_with_tools.ainvoke([HumanMessage(content="Hello!")])
-```
-
-### Option 2: Manual Models (Full Flexibility)
-
-```python
-from langwatch import ChatWithFallback
-from langwatch.alerts import EmailAlert
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
-
-# Create your own models - works with ANY LangChain-compatible model
-models = [
-    ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="..."),
-    ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="..."),
-    ChatOpenAI(model="grok-4.1", base_url="https://openrouter.ai/api/v1", api_key="..."),
-]
-
-chat = ChatWithFallback(
-    models=models,
-    model_names=["gemini-1", "gemini-2", "fallback"],
-    alerts=[EmailAlert(...)],
-)
-
-# Bind tools and use
-chat_with_tools = chat.bind_tools(tools)
-response = await chat_with_tools.ainvoke(messages)
 ```
 
 ---
