@@ -104,7 +104,6 @@ class ChatWithFallback(BaseChatModel):
         self.models = models
         self.model_names = model_names or [f"model-{i}" for i in range(len(models))]
         self.alerts = alerts or []
-        self.key_manager = key_manager
         self.alert_rate_limiter = alert_rate_limiter or InMemoryRateLimiter(default_cooldown=cooldown_seconds)
         self.cooldown_seconds = cooldown_seconds
         self.app_name = app_name
@@ -116,7 +115,58 @@ class ChatWithFallback(BaseChatModel):
         if len(self.model_names) != len(self.models):
             raise ValueError(f"model_names length ({len(self.model_names)}) must match models length ({len(self.models)})")
 
+        # Auto-create KeyManager if not provided
+        if key_manager:
+            self.key_manager = key_manager
+        else:
+            self.key_manager = self._create_key_manager_from_models()
+
         logger.info(f"ChatWithFallback initialized with {len(models)} models: {self.model_names} (app_name={app_name})")
+
+    def _create_key_manager_from_models(self) -> KeyManager:
+        """Auto-create KeyManager by extracting info from LangChain model objects."""
+        keys_config = []
+
+        for i, model_obj in enumerate(self.models):
+            name = self.model_names[i]
+
+            # Extract model name
+            model_id = getattr(model_obj, 'model', None) or getattr(model_obj, 'model_name', None) or "unknown"
+
+            # Infer provider from class name
+            class_name = model_obj.__class__.__name__.lower()
+            if 'openai' in class_name:
+                provider = 'openai'
+            elif 'google' in class_name or 'genai' in class_name or 'gemini' in class_name:
+                provider = 'google'
+            elif 'anthropic' in class_name or 'claude' in class_name:
+                provider = 'anthropic'
+            else:
+                provider = class_name.replace('chat', '').strip() or 'unknown'
+
+            # Try to extract API key
+            api_key = (
+                getattr(model_obj, 'openai_api_key', None) or
+                getattr(model_obj, 'google_api_key', None) or
+                getattr(model_obj, 'anthropic_api_key', None) or
+                getattr(model_obj, 'api_key', None)
+            )
+            if api_key and hasattr(api_key, 'get_secret_value'):
+                api_key = api_key.get_secret_value()
+            api_key_str = str(api_key) if api_key else ""
+
+            # Last model is fallback by default
+            is_fallback = (i == len(self.models) - 1)
+
+            keys_config.append({
+                "name": name,
+                "key": api_key_str,
+                "provider": provider,
+                "model": model_id,
+                "is_fallback": is_fallback,
+            })
+
+        return KeyManager(keys_config)
 
     @classmethod
     def from_config(
