@@ -403,6 +403,6 @@ This is proprietary software. Unauthorized copying, modification, or distributio
 
 **Authors:**
 - Rahul Kumar - rahul@pupiltree.ai | [GitHub](https://github.com/rahul20110)
-- Nikhil Sukhte - nikhil@pupiltree.ai
+- Nikhil Sukthe - nikhil@pupiltree.ai | [GitHub](https://github.com/Nikhils-G)
 
 For licensing inquiries, contact: rahul@pupiltree.ai
