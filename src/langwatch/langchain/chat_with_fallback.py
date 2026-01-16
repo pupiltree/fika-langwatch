@@ -57,7 +57,7 @@ class ChatWithFallback(BaseChatModel):
     models: List[BaseChatModel] = []
     key_manager: Optional[KeyManager] = None
     alerts: List[AlertChannel] = []
-    rate_limiter: InMemoryRateLimiter = None
+    alert_rate_limiter: Optional[InMemoryRateLimiter] = None
     cooldown_seconds: int = 300
     model_names: List[str] = []
     app_name: Optional[str] = None
@@ -74,7 +74,7 @@ class ChatWithFallback(BaseChatModel):
         model_names: Optional[List[str]] = None,
         alerts: Optional[List[AlertChannel]] = None,
         key_manager: Optional[KeyManager] = None,
-        rate_limiter: Optional[InMemoryRateLimiter] = None,
+        alert_rate_limiter: Optional[InMemoryRateLimiter] = None,
         cooldown_seconds: int = 300,
         app_name: Optional[str] = None,
         on_key_failure: Optional[Callable] = None,
@@ -91,7 +91,7 @@ class ChatWithFallback(BaseChatModel):
             model_names: Names for each model (for alerts). Auto-generated if not provided.
             alerts: List of alert channels (Email, Slack, Webhook)
             key_manager: Optional KeyManager for detailed health tracking
-            rate_limiter: Optional rate limiter (created automatically if not provided)
+            alert_rate_limiter: Optional rate limiter for alerts (created automatically if not provided)
             cooldown_seconds: Per-key cooldown between alerts (default: 300 = 5 minutes)
             app_name: App/client name for alert subject lines (e.g., "[ClientA] API Key Failure")
             on_key_failure: Optional callback when a key fails: fn(key_name, error)
@@ -105,7 +105,7 @@ class ChatWithFallback(BaseChatModel):
         self.model_names = model_names or [f"model-{i}" for i in range(len(models))]
         self.alerts = alerts or []
         self.key_manager = key_manager
-        self.rate_limiter = rate_limiter or InMemoryRateLimiter(default_cooldown=cooldown_seconds)
+        self.alert_rate_limiter = alert_rate_limiter or InMemoryRateLimiter(default_cooldown=cooldown_seconds)
         self.cooldown_seconds = cooldown_seconds
         self.app_name = app_name
         self.on_key_failure = on_key_failure
@@ -222,7 +222,7 @@ class ChatWithFallback(BaseChatModel):
             model_names=self.model_names,
             alerts=self.alerts,
             key_manager=self.key_manager,
-            rate_limiter=self.rate_limiter,
+            alert_rate_limiter=self.alert_rate_limiter,
             cooldown_seconds=self.cooldown_seconds,
             app_name=self.app_name,
             on_key_failure=self.on_key_failure,
@@ -399,7 +399,7 @@ class ChatWithFallback(BaseChatModel):
         alert_key = f"key_failure:{model_name}"
 
         # Check rate limit for this specific key
-        if not self.rate_limiter.can_send(alert_key, self.cooldown_seconds):
+        if not self.alert_rate_limiter.can_send(alert_key, self.cooldown_seconds):
             logger.debug(f"Alert for {model_name} in cooldown, skipping")
             return
 
@@ -414,14 +414,14 @@ class ChatWithFallback(BaseChatModel):
                 logger.error(f"Failed to send alert via {channel.name}: {e}")
 
         # Mark sent
-        self.rate_limiter.mark_sent(alert_key, self.cooldown_seconds)
+        self.alert_rate_limiter.mark_sent(alert_key, self.cooldown_seconds)
 
     async def _send_failure_alert_async(self, index: int, model_name: str, error: str, is_fallback: bool) -> None:
         """Send per-key failure alert asynchronously."""
         alert_key = f"key_failure:{model_name}"
 
         # Check rate limit for this specific key
-        if not self.rate_limiter.can_send(alert_key, self.cooldown_seconds):
+        if not self.alert_rate_limiter.can_send(alert_key, self.cooldown_seconds):
             logger.debug(f"Alert for {model_name} in cooldown, skipping")
             return
 
@@ -437,7 +437,7 @@ class ChatWithFallback(BaseChatModel):
                     logger.error(f"Failed to send alert via {self.alerts[i].name}: {result}")
 
         # Mark sent
-        self.rate_limiter.mark_sent(alert_key, self.cooldown_seconds)
+        self.alert_rate_limiter.mark_sent(alert_key, self.cooldown_seconds)
 
     def _build_failure_payload(self, index: int, model_name: str, error: str, is_fallback: bool) -> AlertPayload:
         """Build alert payload for key failure with full details."""
