@@ -459,6 +459,37 @@ class ChatWithFallback(BaseChatModel):
                 api_key_masked = f"{key.key[:4]}...{key.key[-4:]}"
             elif key.key:
                 api_key_masked = f"{key.key[:2]}..."
+        else:
+            # Extract info from LangChain model object when KeyManager not available
+            if index < len(self.models):
+                model_obj = self.models[index]
+                # Extract model name
+                model_id = getattr(model_obj, 'model', None) or getattr(model_obj, 'model_name', None)
+                # Infer provider from class name
+                class_name = model_obj.__class__.__name__.lower()
+                if 'openai' in class_name:
+                    provider = 'openai'
+                elif 'google' in class_name or 'genai' in class_name or 'gemini' in class_name:
+                    provider = 'google'
+                elif 'anthropic' in class_name or 'claude' in class_name:
+                    provider = 'anthropic'
+                else:
+                    provider = class_name.replace('chat', '').strip()
+                # Try to extract and mask API key
+                api_key = (
+                    getattr(model_obj, 'openai_api_key', None) or
+                    getattr(model_obj, 'google_api_key', None) or
+                    getattr(model_obj, 'anthropic_api_key', None) or
+                    getattr(model_obj, 'api_key', None)
+                )
+                if api_key:
+                    api_key_str = str(api_key.get_secret_value() if hasattr(api_key, 'get_secret_value') else api_key)
+                    if len(api_key_str) > 16:
+                        api_key_masked = f"{api_key_str[:8]}...{api_key_str[-4:]}"
+                    elif len(api_key_str) > 8:
+                        api_key_masked = f"{api_key_str[:4]}...{api_key_str[-4:]}"
+                    elif api_key_str:
+                        api_key_masked = f"{api_key_str[:2]}..."
 
         # Build title with app_name prefix
         key_type = "fallback" if is_fallback else "primary"
