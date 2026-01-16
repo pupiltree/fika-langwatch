@@ -21,19 +21,11 @@ LangChain wrapper with automatic fallback and alert notifications when API keys 
 
 ```bash
 pip install fika-langwatch
-
-# With optional dependencies
-pip install fika-langwatch[email]      # Email alerts (aiosmtplib)
-pip install fika-langwatch[slack]      # Slack alerts (httpx)
-pip install fika-langwatch[webhook]    # Webhook alerts (httpx)
-pip install fika-langwatch[all]        # All alert channels
-
-# Provider-specific
-pip install fika-langwatch[google]     # Google Gemini
-pip install fika-langwatch[openai]     # OpenAI
-pip install fika-langwatch[anthropic]  # Anthropic Claude
-pip install fika-langwatch[providers]  # All providers
 ```
+
+All dependencies are included by default:
+- **Alert Channels:** Email (aiosmtplib), Slack (httpx), Webhook (httpx)
+- **Providers:** Google Gemini, OpenAI, Anthropic Claude, OpenRouter
 
 ## Quick Start
 
