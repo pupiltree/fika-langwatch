@@ -47,3 +47,6 @@ Thumbs.db
 *.log
 .env
 .env.local
+
+TECHNICAL_GUIDE.md
+technical_guide.md

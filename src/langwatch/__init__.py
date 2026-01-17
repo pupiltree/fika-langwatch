@@ -27,7 +27,7 @@ from .key_manager import KeyManager, APIKey
 from .rate_limiter import InMemoryRateLimiter
 from .providers import ProviderFactory
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 __author__ = "FIKA Private Limited"
 
 __all__ = [
