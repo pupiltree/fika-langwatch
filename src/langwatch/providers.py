@@ -77,7 +77,7 @@ class ProviderFactory:
             model=key.model,
             google_api_key=key.key,
             temperature=extra.get("temperature", 0.3),
-            max_retries=extra.get("max_retries", 0),  # Fail fast for fallback
+            max_retries=extra.get("max_retries", 1),  # 1 = no retries (0 means default=5 in Google SDK)
             **{k: v for k, v in extra.items() if k not in ["temperature", "max_retries"]},
         )
 

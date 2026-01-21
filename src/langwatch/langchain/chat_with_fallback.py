@@ -9,8 +9,9 @@ from typing import Any, Dict, List, Optional, Sequence, Callable, Union, TYPE_CH
 
 from langchain_core.callbacks import CallbackManagerForLLMRun, AsyncCallbackManagerForLLMRun
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import BaseMessage
-from langchain_core.outputs import ChatResult
+from langchain_core.messages import BaseMessage, AIMessage
+from langchain_core.outputs import ChatResult, ChatGeneration
+from langchain_core.runnables import RunnableBinding
 from pydantic import ConfigDict
 
 from ..alerts.base import AlertChannel, AlertPayload
@@ -114,6 +115,29 @@ class ChatWithFallback(BaseChatModel):
 
         if len(self.model_names) != len(self.models):
             raise ValueError(f"model_names length ({len(self.model_names)}) must match models length ({len(self.models)})")
+
+        # Warn if primary models have max_retries set (internal retries conflict with fallback)
+        for i, model in enumerate(self.models[:-1]):  # All except last (fallback)
+            if isinstance(model, RunnableBinding):
+                continue  # Skip wrapped models
+            if hasattr(model, 'max_retries'):
+                current_retries = getattr(model, 'max_retries', None)
+                if current_retries and current_retries > 1:
+                    class_name = model.__class__.__name__
+                    is_google = 'google' in class_name.lower() or 'genai' in class_name.lower()
+
+                    if is_google:
+                        logger.warning(
+                            f"Primary model '{self.model_names[i]}' has max_retries={current_retries}. "
+                            f"For Google models, use max_retries=1 to disable retries (0 means default=5 in Google SDK). "
+                            f"Internal retries will delay fallback activation."
+                        )
+                    else:
+                        logger.warning(
+                            f"Primary model '{self.model_names[i]}' has max_retries={current_retries}. "
+                            f"For best fallback behavior, set max_retries=0. "
+                            f"Internal retries will delay fallback activation."
+                        )
 
         # Auto-create KeyManager if not provided
         if key_manager:
@@ -318,7 +342,13 @@ class ChatWithFallback(BaseChatModel):
 
             try:
                 logger.debug(f"Trying model: {model_name}")
-                result = model._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+                # Use invoke() to respect RunnableBinding from bind_tools()
+                response = model.invoke(messages, stop=stop, **kwargs)
+                # Wrap AIMessage in ChatResult
+                if isinstance(response, AIMessage):
+                    result = ChatResult(generations=[ChatGeneration(message=response)])
+                else:
+                    result = response
 
                 # Mark as healthy if we have key_manager
                 if self.key_manager:
@@ -362,7 +392,13 @@ class ChatWithFallback(BaseChatModel):
 
             try:
                 logger.debug(f"Trying model: {model_name}")
-                result = await model._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+                # Use ainvoke() to respect RunnableBinding from bind_tools()
+                response = await model.ainvoke(messages, stop=stop, **kwargs)
+                # Wrap AIMessage in ChatResult
+                if isinstance(response, AIMessage):
+                    result = ChatResult(generations=[ChatGeneration(message=response)])
+                else:
+                    result = response
 
                 # Mark as healthy
                 if self.key_manager:

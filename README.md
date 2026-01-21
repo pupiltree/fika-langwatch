@@ -29,7 +29,7 @@ All dependencies are included by default:
 
 ## Quick Start
 
-### Option 1: Manual Models (Recommended)
+### Option 1: Manual Models
 
 ```python
 from langwatch import ChatWithFallback
@@ -38,9 +38,10 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 
 # Create your own models - works with ANY LangChain-compatible model
+# Note: Use max_retries=1 for Google (0 = default = 5 retries in Google SDK)
 models = [
-    ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="..."),
-    ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="..."),
+    ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="...", max_retries=1),
+    ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="...", max_retries=1),
     ChatOpenAI(model="grok-4.1", base_url="https://openrouter.ai/api/v1", api_key="..."),
 ]
 
@@ -55,7 +56,25 @@ chat_with_tools = chat.bind_tools(tools)
 response = await chat_with_tools.ainvoke(messages)
 ```
 
-### Option 2: Config-based (Auto-create Models)
+> ⚠️ **IMPORTANT: Disable retries on primary models!**
+>
+> When using manual models, you **MUST** disable retries on all primary models (all except the fallback). Otherwise, internal retries will delay fallback activation.
+>
+> ```python
+> # ❌ WRONG - Internal retries will delay fallback
+> gemini = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="...")
+>
+> # ✅ CORRECT - Fails fast, fallback kicks in immediately
+> # Note: Use max_retries=1 for Google (0 means "use default" = 5 retries in Google SDK)
+> gemini = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="...", max_retries=1)
+>
+> # For OpenAI/Anthropic, max_retries=0 works as expected
+> openai = ChatOpenAI(model="gpt-4o-mini", api_key="...", max_retries=0)
+> ```
+>
+> **Prefer `from_config()` (Option 2) which handles this automatically.**
+
+### Option 2: Config-based (Recommended - Auto-handles `max_retries`)
 
 ```python
 from langwatch import ChatWithFallback

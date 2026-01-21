@@ -26,7 +26,8 @@ class TestChatWithFallbackInit:
         assert len(chat.models) == 1
         assert chat.model_names == ["test-model"]
         assert chat.alerts == []
-        assert chat.key_manager is None
+        # key_manager is auto-created if not provided
+        assert chat.key_manager is not None
 
     def test_init_with_all_params(self, mock_chat_model, mock_alert_channel):
         """Test initialization with all parameters."""
@@ -151,7 +152,7 @@ class TestChatWithFallbackGenerate:
         result = chat._generate(messages)
 
         assert isinstance(result, ChatResult)
-        mock_chat_model._generate.assert_called_once()
+        mock_chat_model.invoke.assert_called_once()
 
     def test_generate_fallback_on_failure(self, mock_models_with_fallback):
         """Test that fallback is used when primary fails."""
@@ -165,9 +166,9 @@ class TestChatWithFallbackGenerate:
 
         assert isinstance(result, ChatResult)
         # Primary should have been tried and failed
-        mock_models_with_fallback[0]._generate.assert_called_once()
+        mock_models_with_fallback[0].invoke.assert_called_once()
         # Fallback should have succeeded
-        mock_models_with_fallback[1]._generate.assert_called_once()
+        mock_models_with_fallback[1].invoke.assert_called_once()
 
     def test_generate_marks_healthy_on_success(self, mock_chat_model):
         """Test that successful model is marked healthy."""
@@ -209,7 +210,7 @@ class TestChatWithFallbackGenerate:
         key_manager.mark_failed("gemini-1", "Error")
 
         failing_model = MagicMock()
-        failing_model._generate = MagicMock(side_effect=Exception("Should not be called"))
+        failing_model.invoke = MagicMock(side_effect=Exception("Should not be called"))
 
         chat = ChatWithFallback(
             models=[failing_model, mock_chat_model],
@@ -222,9 +223,9 @@ class TestChatWithFallbackGenerate:
         result = chat._generate(messages)
 
         # First model should be skipped (unhealthy)
-        failing_model._generate.assert_not_called()
+        failing_model.invoke.assert_not_called()
         # Second model should be used
-        mock_chat_model._generate.assert_called_once()
+        mock_chat_model.invoke.assert_called_once()
 
 
 class TestChatWithFallbackAGenerate:
@@ -242,7 +243,7 @@ class TestChatWithFallbackAGenerate:
         result = await chat._agenerate(messages)
 
         assert isinstance(result, ChatResult)
-        mock_chat_model._agenerate.assert_called_once()
+        mock_chat_model.ainvoke.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_agenerate_fallback(self, mock_models_with_fallback):
@@ -256,8 +257,8 @@ class TestChatWithFallbackAGenerate:
         result = await chat._agenerate(messages)
 
         assert isinstance(result, ChatResult)
-        mock_models_with_fallback[0]._agenerate.assert_called_once()
-        mock_models_with_fallback[1]._agenerate.assert_called_once()
+        mock_models_with_fallback[0].ainvoke.assert_called_once()
+        mock_models_with_fallback[1].ainvoke.assert_called_once()
 
 
 class TestChatWithFallbackBindTools:
@@ -314,10 +315,8 @@ class TestChatWithFallbackAlerts:
         """Test that model failure triggers alert."""
         # Need a successful fallback to complete
         success_model = MagicMock()
-        success_result = ChatResult(
-            generations=[ChatGeneration(message=AIMessage(content="OK"))]
-        )
-        success_model._generate = MagicMock(return_value=success_result)
+        success_response = AIMessage(content="OK")
+        success_model.invoke = MagicMock(return_value=success_response)
 
         chat = ChatWithFallback(
             models=[mock_failing_model, success_model],
@@ -336,10 +335,8 @@ class TestChatWithFallbackAlerts:
     def test_alert_respects_cooldown(self, mock_failing_model, mock_alert_channel):
         """Test that alerts respect cooldown."""
         success_model = MagicMock()
-        success_result = ChatResult(
-            generations=[ChatGeneration(message=AIMessage(content="OK"))]
-        )
-        success_model._generate = MagicMock(return_value=success_result)
+        success_response = AIMessage(content="OK")
+        success_model.invoke = MagicMock(return_value=success_response)
 
         chat = ChatWithFallback(
             models=[mock_failing_model, success_model],
@@ -361,10 +358,8 @@ class TestChatWithFallbackAlerts:
     def test_alert_payload_includes_app_name(self, mock_failing_model, mock_alert_channel):
         """Test that alert payload includes app_name."""
         success_model = MagicMock()
-        success_result = ChatResult(
-            generations=[ChatGeneration(message=AIMessage(content="OK"))]
-        )
-        success_model._generate = MagicMock(return_value=success_result)
+        success_response = AIMessage(content="OK")
+        success_model.invoke = MagicMock(return_value=success_response)
 
         chat = ChatWithFallback(
             models=[mock_failing_model, success_model],
@@ -387,10 +382,8 @@ class TestChatWithFallbackCallbacks:
     def test_on_key_failure_callback(self, mock_failing_model):
         """Test on_key_failure callback is called."""
         success_model = MagicMock()
-        success_result = ChatResult(
-            generations=[ChatGeneration(message=AIMessage(content="OK"))]
-        )
-        success_model._generate = MagicMock(return_value=success_result)
+        success_response = AIMessage(content="OK")
+        success_model.invoke = MagicMock(return_value=success_response)
 
         callback_calls = []
 
@@ -416,16 +409,14 @@ class TestChatWithFallbackCallbacks:
 
         # Create mock models
         failing1 = MagicMock()
-        failing1._generate = MagicMock(side_effect=Exception("Error 1"))
+        failing1.invoke = MagicMock(side_effect=Exception("Error 1"))
 
         failing2 = MagicMock()
-        failing2._generate = MagicMock(side_effect=Exception("Error 2"))
+        failing2.invoke = MagicMock(side_effect=Exception("Error 2"))
 
         success = MagicMock()
-        success_result = ChatResult(
-            generations=[ChatGeneration(message=AIMessage(content="OK"))]
-        )
-        success._generate = MagicMock(return_value=success_result)
+        success_response = AIMessage(content="OK")
+        success.invoke = MagicMock(return_value=success_response)
 
         callback_calls = []
 
@@ -467,7 +458,7 @@ class TestChatWithFallbackGetStatus:
         assert status["healthy_keys"] == 2
 
     def test_get_status_without_key_manager(self, mock_chat_model):
-        """Test get_status without KeyManager."""
+        """Test get_status with auto-created KeyManager."""
         chat = ChatWithFallback(
             models=[mock_chat_model, mock_chat_model],
             model_names=["model-1", "model-2"],
@@ -475,5 +466,6 @@ class TestChatWithFallbackGetStatus:
 
         status = chat.get_status()
 
-        assert status["model_names"] == ["model-1", "model-2"]
-        assert status["num_models"] == 2
+        # key_manager is auto-created, so we get full status
+        assert status["total_keys"] == 2
+        assert status["healthy_keys"] == 2

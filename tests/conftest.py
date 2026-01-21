@@ -206,20 +206,15 @@ def mock_alert_channel():
 @pytest.fixture
 def mock_chat_model():
     """Mock LangChain chat model."""
-    from langchain_core.outputs import ChatResult, ChatGeneration
     from langchain_core.messages import AIMessage
 
     model = MagicMock()
     model._llm_type = "mock"
 
-    # Sync response
-    mock_result = ChatResult(
-        generations=[ChatGeneration(message=AIMessage(content="Mock response"))]
-    )
-    model._generate = MagicMock(return_value=mock_result)
-
-    # Async response
-    model._agenerate = AsyncMock(return_value=mock_result)
+    # Response as AIMessage (invoke returns AIMessage, not ChatResult)
+    mock_response = AIMessage(content="Mock response")
+    model.invoke = MagicMock(return_value=mock_response)
+    model.ainvoke = AsyncMock(return_value=mock_response)
 
     # bind_tools support
     model.bind_tools = MagicMock(return_value=model)
@@ -232,8 +227,8 @@ def mock_failing_model():
     """Mock model that always fails."""
     model = MagicMock()
     model._llm_type = "mock_failing"
-    model._generate = MagicMock(side_effect=Exception("API Error: quota exceeded"))
-    model._agenerate = AsyncMock(side_effect=Exception("API Error: quota exceeded"))
+    model.invoke = MagicMock(side_effect=Exception("API Error: quota exceeded"))
+    model.ainvoke = AsyncMock(side_effect=Exception("API Error: quota exceeded"))
     model.bind_tools = MagicMock(return_value=model)
     return model
 
@@ -241,22 +236,19 @@ def mock_failing_model():
 @pytest.fixture
 def mock_models_with_fallback(mock_chat_model, mock_failing_model):
     """List of models where first fails, second succeeds."""
-    from langchain_core.outputs import ChatResult, ChatGeneration
     from langchain_core.messages import AIMessage
 
     failing = MagicMock()
     failing._llm_type = "failing"
-    failing._generate = MagicMock(side_effect=Exception("Primary failed"))
-    failing._agenerate = AsyncMock(side_effect=Exception("Primary failed"))
+    failing.invoke = MagicMock(side_effect=Exception("Primary failed"))
+    failing.ainvoke = AsyncMock(side_effect=Exception("Primary failed"))
     failing.bind_tools = MagicMock(return_value=failing)
 
-    success_result = ChatResult(
-        generations=[ChatGeneration(message=AIMessage(content="Fallback response"))]
-    )
+    success_response = AIMessage(content="Fallback response")
     success = MagicMock()
     success._llm_type = "success"
-    success._generate = MagicMock(return_value=success_result)
-    success._agenerate = AsyncMock(return_value=success_result)
+    success.invoke = MagicMock(return_value=success_response)
+    success.ainvoke = AsyncMock(return_value=success_response)
     success.bind_tools = MagicMock(return_value=success)
 
     return [failing, success]
